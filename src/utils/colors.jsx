@@ -1,0 +1,20 @@
+export const colors = {
+orange: '#FF9800',
+backgroundcolor: '#f5f6f8',
+black: '#000',
+white: '#fff',
+placeholder: '#999',
+icon: '#888',
+gray: '#ddd',
+border:'#e0e0e0',
+lightgray:'#f3f3f3',
+subtitle:'#666',
+green:'#2e7d32',
+red:'#E53935',
+gray2:'#555',
+blue:'#2196F3',
+present:'#C8E6C9',
+absent:'#FFCDD2',
+holiday:'#FFF9C4',
+
+};
