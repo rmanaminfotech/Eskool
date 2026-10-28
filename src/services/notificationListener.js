@@ -62,7 +62,16 @@ export async function initializeNotificationListeners() {
   const notifeeModule = getNotifeeModule();
 
   try {
-    await messaging().registerDeviceForRemoteMessages();
+    const firebaseMessaging = messaging();
+
+    // This registration is only needed on iOS. Some Android Firebase builds do
+    // not expose the method, which previously created an unhandled promise.
+    if (
+      Platform.OS === "ios" &&
+      typeof firebaseMessaging.registerDeviceForRemoteMessages === "function"
+    ) {
+      await firebaseMessaging.registerDeviceForRemoteMessages();
+    }
 
     if (notifeeModule?.notifee) {
       await notifeeModule.notifee.requestPermission();
@@ -76,11 +85,21 @@ export async function initializeNotificationListeners() {
     console.log("Notification setup failed:", error?.message || error);
   }
 
-  return messaging().onMessage(async (remoteMessage) => {
-    try {
-      await showForegroundNotification(remoteMessage);
-    } catch (error) {
-      console.log("Foreground notification failed:", error?.message || error);
+  try {
+    const firebaseMessaging = messaging();
+    if (typeof firebaseMessaging.onMessage !== "function") {
+      return () => {};
     }
-  });
+
+    return firebaseMessaging.onMessage(async (remoteMessage) => {
+      try {
+        await showForegroundNotification(remoteMessage);
+      } catch (error) {
+        console.log("Foreground notification failed:", error?.message || error);
+      }
+    });
+  } catch (error) {
+    console.log("Notification listener unavailable:", error?.message || error);
+    return () => {};
+  }
 }

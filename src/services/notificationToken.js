@@ -43,8 +43,16 @@ export async function syncNotificationTokenForStudent(student) {
     const hasPermission = await requestNotificationPermission();
     if (!hasPermission) return;
 
-    await messaging().registerDeviceForRemoteMessages();
-    const token = await messaging().getToken();
+    const firebaseMessaging = messaging();
+    if (
+      Platform.OS === "ios" &&
+      typeof firebaseMessaging.registerDeviceForRemoteMessages === "function"
+    ) {
+      await firebaseMessaging.registerDeviceForRemoteMessages();
+    }
+
+    if (typeof firebaseMessaging.getToken !== "function") return;
+    const token = await firebaseMessaging.getToken();
 
     if (!token) return;
 

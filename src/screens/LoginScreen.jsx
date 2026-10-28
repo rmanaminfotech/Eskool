@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -8,16 +8,11 @@ import {
   KeyboardAvoidingView,
   Platform,
   Image,
-  Animated,
-  Dimensions,
   ScrollView,
 } from 'react-native';
 import AppAlertModal from '../components/AppAlertModal';
 
-import Icon from 'react-native-vector-icons/Ionicons';
-import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
-import { imageapi } from './Api';
-import { colors } from '../utils/colors';
+import LinearGradient from 'react-native-linear-gradient';
 import {
   getSelectedStudentRaw,
   persistLoginSession,
@@ -26,17 +21,14 @@ import {
 import { studentApi } from '../services/studentApi';
 import { syncNotificationTokenForStudent } from '../services/notificationToken';
 import { Keyboard } from 'react-native';
-const { width } = Dimensions.get('window');
 
 export function LoginScreen({ navigation }) {
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
   const [mode, setMode] = useState('phone');
   const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const translateX = useRef(new Animated.Value(0)).current;
   const [alertVisible, setAlertVisible] = useState(false);
   const [alertMessage, setAlertMessage] = useState('');
   const [school, setSchool] = useState(null);
@@ -65,20 +57,10 @@ const [keyboardVisible, setKeyboardVisible] = useState(false);
       if (Array.isArray(response.data) && response.data.length > 0) {
         setSchool(response.data[0]);
       }
-    } catch (error) {
-      console.log('Master API Error:', error);
+    } catch (fetchError) {
+      console.log('Master API Error:', fetchError);
     }
   };
-
-  useEffect(() => {
-    Animated.loop(
-      Animated.timing(translateX, {
-        toValue: -width,
-        duration: 14000,
-        useNativeDriver: true,
-      }),
-    ).start();
-  }, []);
 
   // AUTO LOGIN CHECK
   useEffect(() => {
@@ -92,7 +74,7 @@ const [keyboardVisible, setKeyboardVisible] = useState(false);
       }
     };
     checkLogin();
-  }, []);
+  }, [navigation]);
 
   // PHONE INPUT VALIDATION (Only numbers, max 10)
   const handlePhoneChange = (text) => {
@@ -101,9 +83,9 @@ const [keyboardVisible, setKeyboardVisible] = useState(false);
   };
 
   // EMAIL VALIDATION
-  const validateEmail = (email) => {
+  const validateEmail = (value) => {
     const regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return regex.test(email);
+    return regex.test(value);
   };
 
   // ================= PHONE LOGIN =================
@@ -116,7 +98,6 @@ const [keyboardVisible, setKeyboardVisible] = useState(false);
 
     try {
       setLoading(true);
-      setError('');
 
       const response = await studentApi.post('loginOTP.php', {
         sl_stud_phn: phone.trim(),
@@ -131,7 +112,8 @@ const [keyboardVisible, setKeyboardVisible] = useState(false);
         setAlertVisible(true);
       }
     } catch {
-      setError('Server error. Please try again.');
+      setAlertMessage('Server error. Please try again.');
+      setAlertVisible(true);
     } finally {
       setLoading(false);
     }
@@ -153,7 +135,6 @@ const [keyboardVisible, setKeyboardVisible] = useState(false);
 
     try {
       setLoading(true);
-      setError('');
 
       const response = await studentApi.post('loginEmail.php', {
         sl_stud_email: email.trim(),
@@ -207,142 +188,97 @@ const [keyboardVisible, setKeyboardVisible] = useState(false);
     (mode === 'phone' && phone.length !== 10) ||
     (mode === 'email' && (!email || !password));
 
-  const LOGO_BASE_URL = `${imageapi}`;
-
   return (
-    <View style={{ flex: 1 }}>
+    <View style={styles.container}>
       <KeyboardAvoidingView
-        style={{ flex: 1, backgroundColor: colors.white }}
+        style={styles.container}
         behavior={Platform.OS === 'ios' ? 'padding' : 'padding'}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 60 : 20}
       >
-        <View style={styles.bgWrap}>
-          <Animated.Image
-            source={require('../assets/images/login_bg.jpg')}
-            style={[styles.bgImage, { transform: [{ translateX }] }]}
-          />
-          <Animated.Image
-            source={require('../assets/images/login_bg.jpg')}
-            style={[
-              styles.bgImage,
-              { transform: [{ translateX: Animated.add(translateX, width) }] },
-            ]}
-          />
-          <View style={styles.fullOverlay} />
-        </View>
-
         <ScrollView
-          contentContainerStyle={[styles.scrollContent, { paddingBottom: 80 }]}
+          contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
-          <View style={styles.contentInner}>
+          <View style={styles.hero}>
             <Image
-              source={{
-                uri: school?.logo
-                  ? `${LOGO_BASE_URL}${school.logo}`
-                  : 'https://via.placeholder.com/150',
-              }}
-              style={styles.logo}
-              resizeMode="contain"
+              source={require('../assets/images/login_reference_full.jpg')}
+              style={styles.heroReferenceImage}
+              resizeMode="stretch"
             />
+          </View>
 
-            <Text style={styles.mainTitle}>
-              {school?.company || 'TRINITY CONVENT SCHOOL'}
+          <View style={styles.loginCard}>
+            <View style={styles.capIcon}>
+              <Image source={require('../assets/images/reference_cap_icon.jpg')} style={styles.capReferenceImage} />
+            </View>
+            <Text style={styles.loginTitle}>Student Login</Text>
+            <Text style={styles.loginSubtitle}>
+              {mode === 'phone' ? 'Access your learning journey' : 'Sign in with your school email'}
             </Text>
-            <Text style={styles.subTitle}>Student Login</Text>
 
-            {mode === 'phone' && (
-              <>
-                <View style={styles.inputRow}>
-                  <View style={styles.countryBox}>
-                    <Text style={{ fontWeight: '600' }}>+91</Text>
-                  </View>
-
-                  <TextInput
-                    style={styles.input}
-                    placeholder="Phone-Number"
-                    placeholderTextColor={colors.placeholder}
-                    keyboardType="number-pad"
-                    maxLength={10}
-                    value={phone}
-                    onChangeText={handlePhoneChange}
-                  />
+            {mode === 'phone' ? (
+              <View style={styles.inputRow}>
+                <View style={styles.countryBox}>
+                  <Text style={styles.countryCode}>+91</Text>
+                  <Text style={styles.chevron}>⌄</Text>
                 </View>
-              </>
-            )}
-
-            {mode === 'email' && (
+                <View style={styles.inputDivider} />
+                <TextInput
+                  style={styles.input}
+                  placeholder="Enter your phone number"
+                  placeholderTextColor="#9aa3b2"
+                  keyboardType="number-pad"
+                  maxLength={10}
+                  value={phone}
+                  onChangeText={handlePhoneChange}
+                />
+                <Image source={require('../assets/images/reference_phone_icon.jpg')} style={styles.phoneReferenceIcon} />
+              </View>
+            ) : (
               <>
-                {/* Email Input with Icon */}
                 <View style={styles.inputContainer}>
-                  <Icon
-                    name="mail-outline"
-                    size={20}
-                    color="#888"
-                    style={styles.leftIcon}
-                  />
+                  <Text style={styles.inputSymbol}>@</Text>
                   <TextInput
                     style={styles.inputWithIcon}
-                    placeholder="Email"
-                    placeholderTextColor={colors.placeholder}
+                    placeholder="Email address"
+                    placeholderTextColor="#9aa3b2"
                     keyboardType="email-address"
                     autoCapitalize="none"
                     value={email}
                     onChangeText={setEmail}
                   />
                 </View>
-
-                {/* Password Input with Icon */}
                 <View style={styles.inputContainer}>
-                  <Icon
-                    name="lock-closed-outline"
-                    size={20}
-                    color={colors.icon}
-                    style={styles.leftIcon}
-                  />
+                  <Text style={styles.inputSymbol}>•</Text>
                   <TextInput
                     style={styles.inputWithIcon}
                     placeholder="Password"
-                    placeholderTextColor={colors.placeholder}
+                    placeholderTextColor="#9aa3b2"
                     secureTextEntry={!showPassword}
                     value={password}
                     onChangeText={setPassword}
                   />
-
-                  <TouchableOpacity
-                    onPress={() => setShowPassword(!showPassword)}
-                    style={styles.rightIcon}
-                  >
-                    <Icon
-                      name={showPassword ? 'eye-off-outline' : 'eye-outline'}
-                      size={20}
-                      color={colors.orange}
-                    />
+                  <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.rightIcon}>
+                    <Text style={styles.visibilityText}>{showPassword ? 'Hide' : 'Show'}</Text>
                   </TouchableOpacity>
                 </View>
-                <TouchableOpacity
-                  style={styles.forgotPasswordContainer}
-                  onPress={() => navigation.navigate('ForgetPassword')}
-                >
-                  <Text style={styles.forgotPasswordText}>
-                    Forgot Password?
-                  </Text>
+                <TouchableOpacity style={styles.forgotPasswordContainer} onPress={() => navigation.navigate('ForgetPassword')}>
+                  <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
                 </TouchableOpacity>
               </>
             )}
 
-            <TouchableOpacity
-              disabled={disabled || loading}
-              onPress={handleLogin}
-              style={[
-                styles.button,
-                (disabled || loading) && { backgroundColor: colors.gray},
-              ]}
-            >
-              <Text style={styles.buttonText}>
-                {loading ? 'Please wait...' : 'Continue'}
-              </Text>
+            <TouchableOpacity disabled={disabled || loading} onPress={handleLogin} activeOpacity={0.86}>
+              <LinearGradient
+                colors={disabled || loading ? ['#c7cbd2', '#aeb4bd'] : ['#ffad23', '#f67608']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={styles.button}
+              >
+                <Text style={styles.buttonText}>{loading ? 'Please wait...' : 'Continue'}</Text>
+                {!loading && <Text style={styles.buttonArrow}>→</Text>}
+              </LinearGradient>
             </TouchableOpacity>
 
             <View style={styles.orContainer}>
@@ -351,26 +287,24 @@ const [keyboardVisible, setKeyboardVisible] = useState(false);
               <View style={styles.hr} />
             </View>
 
-            {mode === 'phone' ? (
-              <TouchableOpacity onPress={() => setMode('email')}>
-                <Text style={styles.emailLogin}>Login with Email</Text>
-              </TouchableOpacity>
-            ) : (
-              <TouchableOpacity onPress={() => setMode('phone')}>
-                <Text style={styles.emailLogin}>Login with Phone</Text>
-              </TouchableOpacity>
-            )}
-
-           
+            <TouchableOpacity style={styles.alternateButton} onPress={() => setMode(mode === 'phone' ? 'email' : 'phone')}>
+              <Image
+                source={mode === 'phone'
+                  ? require('../assets/images/reference_email_icon.jpg')
+                  : require('../assets/images/reference_phone_icon.jpg')}
+                style={styles.alternateReferenceIcon}
+              />
+              <Text style={styles.alternateButtonText}>
+                {mode === 'phone' ? 'Login with Email' : 'Login with Phone'}
+              </Text>
+            </TouchableOpacity>
           </View>
         </ScrollView>
         {!keyboardVisible && (
-  <View style={styles.footerContainer}>
-    <Text style={styles.footer}>
-      Copyright - © {new Date().getFullYear()} {school?.company || 'Trinity Convent School'}
-    </Text>
-  </View>
-)}
+          <View style={styles.footerContainer}>
+            <Text style={styles.footer}>© {new Date().getFullYear()} {school?.company || 'Trinity Convent School'}</Text>
+          </View>
+        )}
       </KeyboardAvoidingView>
       <AppAlertModal
         visible={alertVisible}
@@ -386,140 +320,105 @@ const [keyboardVisible, setKeyboardVisible] = useState(false);
   );
 }
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.white },
-  bgWrap: {
-    position: 'absolute',
-    top: 0,
-    width: '100%',
-    height: 360,
+  container: { flex: 1, backgroundColor: '#fffaf3' },
+  scrollContent: { flexGrow: 1, paddingBottom: 76 },
+  hero: {
+    height: 282,
     overflow: 'hidden',
+    backgroundColor: '#fff',
   },
-  bgImage: { position: 'absolute', width, height: 260 },
-  fullOverlay: {
+  heroReferenceImage: {
     position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(255,255,255,0.55)',
-  },
-  content: {
-    flex: 1,
-    paddingHorizontal: 24,
-    marginTop: 130,
-  },
-  logo: {
+    top: -27,
     width: '100%',
-    height: 220, // 🔥 bigger
+    height: 780,
   },
-  mainTitle: {
-    fontSize: 20,
-    fontWeight: '500',
-    textAlign: 'center',
-    marginTop: -40,
+  loginCard: {
+    backgroundColor: '#fff',
+    borderRadius: 30,
+    marginHorizontal: 12,
+    marginTop: 30,
+    paddingHorizontal: 16,
+    paddingTop: 27,
+    paddingBottom: 25,
+    elevation: 7,
+    shadowColor: '#26364f',
+    shadowOffset: { width: 0, height: 7 },
+    shadowOpacity: 0.12,
+    shadowRadius: 17,
   },
-  subTitle: { textAlign: 'center', color: '#666', marginBottom: 30 },
+  capIcon: { alignSelf: 'center', width: 60, height: 60, marginBottom: 11 },
+  capReferenceImage: { width: 60, height: 60 },
+  loginTitle: { textAlign: 'center', color: '#102b55', fontSize: 25, fontWeight: '800' },
+  loginSubtitle: { textAlign: 'center', color: '#798397', fontSize: 15, marginTop: 5, marginBottom: 23 },
   inputRow: {
     flexDirection: 'row',
+    alignItems: 'center',
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: '#dce1e8',
     borderRadius: 14,
-    overflow: 'hidden',
-    marginBottom: 18,
+    height: 58,
+    backgroundColor: '#fff',
   },
   countryBox: {
-    width: 60,
+    width: 66,
+    flexDirection: 'row',
+    gap: 4,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: colors.lightgray,
   },
-  input: { flex: 1, paddingHorizontal: 14, fontSize: 16 },
-  emailInput: {
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 14,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    fontSize: 16,
-    marginBottom: 14,
-    color: colors.black,
-  },
+  countryCode: { color: '#102b55', fontSize: 16, fontWeight: '800' },
+  chevron: { color: '#102b55', fontSize: 19, marginTop: -5 },
+  inputDivider: { height: 30, width: 1, backgroundColor: '#c9cfda' },
+  input: { flex: 1, color: '#172b4d', paddingHorizontal: 14, fontSize: 15 },
+  phoneReferenceIcon: { width: 27, height: 27, marginRight: 14 },
   button: {
-    backgroundColor: colors.orange,
-    paddingVertical: 14,
+    minHeight: 58,
     borderRadius: 14,
+    marginTop: 18,
     alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+    gap: 10,
   },
-  buttonText: { color: colors.white, fontWeight: '700', fontSize: 16 },
+  buttonText: { color: '#fff', fontWeight: '800', fontSize: 18 },
+  buttonArrow: { color: '#fff', fontSize: 26, lineHeight: 29, marginTop: -2 },
   orContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginVertical: 15,
+    marginVertical: 22,
   },
-  hr: { flex: 1, height: 1, backgroundColor: colors.gray },
-  orText: { marginHorizontal: 10, fontSize: 12, color: colors.gray },
-  emailLogin: {
-    textAlign: 'center',
-    fontSize: 14,
-    color: colors.orange,
-    marginTop: 10,
-    fontWeight: '600',
-  },
-
+  hr: { flex: 1, height: 1, backgroundColor: '#d9dee7' },
+  orText: { marginHorizontal: 13, fontSize: 12, fontWeight: '700', color: '#9aa3b2' },
+  alternateButton: { minHeight: 58, borderRadius: 16, borderWidth: 1.5, borderColor: '#f2a333', justifyContent: 'center', alignItems: 'center', flexDirection: 'row', gap: 10 },
+  alternateReferenceIcon: { width: 27, height: 27 },
+  alternateButtonText: { color: '#ed830d', fontWeight: '800', fontSize: 16 },
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 14,
-    marginBottom: 14,
-    paddingHorizontal: 12,
-    backgroundColor: colors.white,
+    borderColor: '#dce1e8',
+    borderRadius: 16,
+    minHeight: 58,
+    marginBottom: 12,
+    paddingHorizontal: 15,
+    backgroundColor: '#fff',
   },
-
-  leftIcon: {
-    marginRight: 8,
-  },
-
-  rightIcon: {
-    marginLeft: 8,
-  },
-
+  inputSymbol: { marginRight: 11, color: '#7e889a', fontSize: 18, fontWeight: '800', width: 15, textAlign: 'center' },
+  rightIcon: { marginLeft: 8, padding: 4 },
+  visibilityText: { color: '#ee850d', fontSize: 12, fontWeight: '800' },
   inputWithIcon: {
     flex: 1,
-    paddingVertical: 12,
-    fontSize: 16,
-    color: colors.black,
+    minHeight: 56,
+    fontSize: 15,
+    color: '#172b4d',
   },
-  scrollContent: {
-    flexGrow: 1,
-    paddingHorizontal: 24,
-    paddingTop: 110,
-    paddingBottom: 40,
-  },
-
-  contentInner: {
-    width: '100%',
-  },
-  forgotPasswordContainer: {
-    alignItems: 'flex-end',
-    marginBottom: 10,
-  },
-
+  forgotPasswordContainer: { alignItems: 'flex-end', marginTop: -2 },
   forgotPasswordText: {
-    color: colors.orange,
+    color: '#ee850d',
     fontSize: 13,
-    fontWeight: '600',
+    fontWeight: '700',
   },
-  footerContainer: {
-  position: 'absolute',
-  bottom: 10,
-  width: '100%',
-  alignItems: 'center',
-},
-
-footer: {
-  fontSize: 12,
-  color: colors.gray2,
-},
+  footerContainer: { position: 'absolute', bottom: 15, width: '100%', alignItems: 'center' },
+  footer: { fontSize: 12, color: '#697487' },
 });
