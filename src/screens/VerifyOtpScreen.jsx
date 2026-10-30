@@ -15,12 +15,11 @@ import { persistLoginSession, setSelectedStudent } from "../services/appStorage"
 import { studentApi } from "../services/studentApi";
 import { syncNotificationTokenForStudent } from "../services/notificationToken";
 
-const DEVELOPMENT_TEST_OTP = "1234";
-
 export function VerifyOtpScreen({ navigation, route }) {
 
   const [otp, setOtp] = useState(["", "", "", ""]);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
   const [alertVisible, setAlertVisible] = useState(false);
   const [alertMessage, setAlertMessage] = useState("");
 
@@ -70,39 +69,9 @@ export function VerifyOtpScreen({ navigation, route }) {
       return;
     }
 
-    // Allows UI testing without an SMS or server call in development only.
-    // `__DEV__` is false in release builds, so this cannot bypass production OTPs.
-    if (__DEV__ && finalOtp === DEVELOPMENT_TEST_OTP) {
-      const testStudent = {
-        id: "debug-student",
-        trainees_name: "Test Student",
-        trade_mod: "Test Class",
-        inst_meritrollno: "TEST-001",
-      };
-
-      try {
-        setLoading(true);
-        await persistLoginSession({
-          jwt: "development-test-session",
-          sl_id: "development-test",
-          children: [testStudent],
-        });
-        await setSelectedStudent(testStudent);
-        navigation.reset({
-          index: 0,
-          routes: [{ name: "HomeScreen" }],
-        });
-      } catch {
-        setAlertMessage("Unable to start the development test session.");
-        setAlertVisible(true);
-      } finally {
-        setLoading(false);
-      }
-      return;
-    }
-
     try {
       setLoading(true);
+      setError("");
       const response = await studentApi.post("verifyotp.php", {
         otp: finalOtp,
       });
@@ -135,8 +104,21 @@ export function VerifyOtpScreen({ navigation, route }) {
         setAlertVisible(true);
       }
 
-    } catch {
-      setAlertMessage("Server error. Please try again.");
+    } catch (requestError) {
+      console.error("[Verify OTP] Request failed", {
+        message: requestError?.message,
+        code: requestError?.code,
+        status: requestError?.response?.status,
+        response: requestError?.response?.data,
+        url: `${requestError?.config?.baseURL || ""}${requestError?.config?.url || ""}`,
+        method: requestError?.config?.method,
+        stack: requestError?.stack,
+      });
+      setAlertMessage(
+        requestError?.response?.data?.message ||
+          requestError?.message ||
+          "Server error. Please try again.",
+      );
       setAlertVisible(true);
     } finally {
       setLoading(false);

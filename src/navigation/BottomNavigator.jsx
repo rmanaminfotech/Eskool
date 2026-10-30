@@ -47,7 +47,7 @@ export function BottomNavigator() {
 
       <TabButton
         icon={sidebarIcon}
-        title="SideBar"
+        title="More"
         isActive={currentRoute === 'Sidebar'}
         onPress={() => navigation.navigate('Sidebar')}
       />
@@ -84,8 +84,8 @@ const styles = StyleSheet.create({
     backgroundColor: colors.white,
     justifyContent: 'space-around',
     alignItems: 'center',
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
   },
   button: {
     flex: 1,
@@ -99,7 +99,7 @@ const styles = StyleSheet.create({
   },
   label: {
     fontSize: 11,
-    marginTop: 4,
+    marginTop: 3,
     color: colors.gray2,
     fontWeight: '600',
   },

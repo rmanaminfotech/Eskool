@@ -9,6 +9,7 @@ import AdmissionFeeRecord from '../screens/AdmissionFeeRecord';
 import Sample from '../screens/Sample';
 import { Attendence } from '../screens/Attendence';
 import Notice from '../screens/Notice';
+import NoticeDetails from '../screens/NoticeDetails';
 import { Routine } from '../screens/Routine';
 import Sidebar from '../screens/Sidebar';
 import Notification from '../screens/Notification';
@@ -40,6 +41,7 @@ export function AppNavigator() {
       <Stack.Screen name="AdmissionFeeRecord" component={AdmissionFeeRecord} />
       <Stack.Screen name="Sample" component={Sample} />
       <Stack.Screen name="Notice" component={Notice} />
+      <Stack.Screen name="NoticeDetails" component={NoticeDetails} />
       <Stack.Screen name="Routine" component={Routine} />
       <Stack.Screen name="Sidebar" component={Sidebar} />
       <Stack.Screen name="Notification" component={Notification} />

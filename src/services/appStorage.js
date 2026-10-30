@@ -56,11 +56,12 @@ export async function setSelectedStudent(student) {
 
 export async function persistLoginSession(payload) {
   const children = payload.children ?? [];
-  await AsyncStorage.multiSet([
-    [STORAGE_KEYS.JWT, payload.jwt],
-    [STORAGE_KEYS.SL_ID, payload.sl_id],
-    [STORAGE_KEYS.CHILDREN, JSON.stringify(children)],
-  ]);
+  // AsyncStorage v3 replaces the legacy `multiSet` method with `setMany`.
+  await AsyncStorage.setMany({
+    [STORAGE_KEYS.JWT]: payload.jwt,
+    [STORAGE_KEYS.SL_ID]: payload.sl_id,
+    [STORAGE_KEYS.CHILDREN]: JSON.stringify(children),
+  });
 }
 
 export async function clearSession() {
