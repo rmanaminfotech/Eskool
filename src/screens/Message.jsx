@@ -20,19 +20,19 @@ import {
    BackHandler,
 } from 'react-native';
 
-import { useIsFocused, useNavigation } from '@react-navigation/native';
+import { useFocusEffect, useIsFocused, useNavigation } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BottomNavigator } from '../navigation/BottomNavigator';
-import CommonHeader from '../components/CommonHeader';
 import { getAuthContext } from '../services/appStorage';
 import { studentApi } from '../services/studentApi';
 import AppAlertModal from '../components/AppAlertModal';
 import { launchImageLibrary } from 'react-native-image-picker';
 import { colors } from '../utils/colors';
 import FullScreenLoader from '../components/FullScreenLoader';
-import { attachmentimages, imageapi, studentapi } from './Api';
+import { attachmentimages, studentapi } from './Api';
 import LinearGradient from 'react-native-linear-gradient';
+import { studentimageapi } from './Api';
 
 const WA_BG = '#ece5dd';
 const BUBBLE_OUT = '#dcf8c6';
@@ -370,6 +370,79 @@ const initialAlert = {
   iconName: 'log-out-outline',
   iconColor: '#e74c3c',
 };
+
+/** Landing header is deliberately local to Messages so the reference treatment
+ * does not alter the headers used by the rest of the app. */
+function MessageLandingHeader({ student, navigation }) {
+  const insets = useSafeAreaInsets();
+  const [count, setCount] = useState(0);
+
+  useFocusEffect(
+    useCallback(() => {
+      let active = true;
+      (async () => {
+        try {
+          const { studentId } = await getAuthContext();
+          if (!studentId) return;
+          const res = await studentApi.post('today_notification.php', {
+            student_id: studentId,
+          });
+          if (active && res?.data?.status) setCount(res.data.count || 0);
+        } catch (error) {
+          console.log('Message notification count error:', error);
+        }
+      })();
+      return () => {
+        active = false;
+      };
+    }, []),
+  );
+
+  return (
+    <LinearGradient
+      colors={['#ff9800', '#ffbe18', '#fff04b']}
+      start={{ x: 0, y: 0 }}
+      end={{ x: 1, y: 1 }}
+      style={[styles.messageHeader, { paddingTop: insets.top + 10 }]}
+    >
+      <View style={styles.headerGlowLeft} />
+      <View style={styles.headerGlowRight} />
+      <View style={styles.messageHeaderRow}>
+        <View style={styles.messageStudentPhotoWrap}>
+          <Image
+            source={
+              student?.photo_name
+                ? { uri: `${studentimageapi}${student.photo_name}` }
+                : require('../assets/icons/avatar.png')
+            }
+            style={styles.messageStudentPhoto}
+            resizeMode="cover"
+          />
+        </View>
+        <View style={styles.messageHeaderText}>
+          <Text style={styles.messageStudentName} numberOfLines={1}>
+            {student?.trainees_name || '-'}
+          </Text>
+          <Text style={styles.messageStudentClass} numberOfLines={1}>
+            Class: {student?.class_name || '-'}
+          </Text>
+        </View>
+        <TouchableOpacity
+          style={styles.messageNotificationBtn}
+          onPress={() => navigation.navigate('Notification')}
+          activeOpacity={0.8}
+        >
+          <Icon name="notifications-outline" size={33} color="#07133f" />
+          {count > 0 ? (
+            <View style={styles.messageBadge}>
+              <Text style={styles.messageBadgeText}>{count > 9 ? '9+' : count}</Text>
+            </View>
+          ) : null}
+        </TouchableOpacity>
+      </View>
+    </LinearGradient>
+  );
+}
 
 /**
  * Chat thread + composer. Separate component so parent `Message` keeps a short,
@@ -927,68 +1000,89 @@ const Message = () => {
         {!chatOpen ? (
           <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
             <View style={{ flex: 1 }}>
-              <CommonHeader
-                student={student}
-                navigation={navigation}
-                showNotification={true}
-              />
+              <StatusBar barStyle="dark-content" translucent backgroundColor="transparent" />
+              <MessageLandingHeader student={student} navigation={navigation} />
 
               <ScrollView
                 style={{ flex: 1 }}
-                contentContainerStyle={{
-                  padding: 20,
-                  paddingBottom: 150,
-                }}
+                contentContainerStyle={styles.landingContent}
                 keyboardShouldPersistTaps="handled"
               >
-                <Text style={styles.screenTitle}>Messages</Text>
-                <Text style={styles.screenSubtitle}>
-                  Choose who you want to chat with
-                </Text>
+                <View style={styles.messageHeadingRow}>
+                  <View style={styles.messageHeadingIcon}>
+                    <Icon name="chatbubble" size={29} color="#fff" />
+                  </View>
+                  <View>
+                    <Text style={styles.screenTitle}>Messages</Text>
+                    <Text style={styles.screenSubtitle}>
+                      Choose who you want to chat with
+                    </Text>
+                  </View>
+                </View>
 
                 <TouchableOpacity
-                  style={styles.channelCard}
+                  style={[styles.channelCard, styles.adminCard]}
                   onPress={() => openChat(adminReceiver)}
                   activeOpacity={0.85}
                   disabled={!adminReceiver}
                 >
-                  <View style={styles.channelIconWrap}>
-                    <Icon name="shield-checkmark" size={28} color={colors.orange} />
+                  <View style={styles.cardBlobTop} />
+                  <View style={styles.cardBlobBottom} />
+                  <View style={[styles.channelIconWrap, styles.adminIconWrap]}>
+                    <Icon name="shield-checkmark" size={42} color="#ff9e00" />
                   </View>
-                  <View style={{ flex: 1 }}>
+                  <View style={styles.channelContent}>
                     <Text style={styles.channelTitle}>School Admin</Text>
-                    <Text style={styles.channelHint} numberOfLines={2}>
-                      {adminReceiver
-                        ? adminReceiver.name || 'Administrator'
-                        : 'Not available from school'}
+                    <Text style={styles.channelRole}>
+                      {adminReceiver?.type || 'Admin'}
+                    </Text>
+                    <Text style={styles.channelHint} numberOfLines={3}>
+                      Get updates, general queries{`\n`}and support from school admin
                     </Text>
                   </View>
-                  <Icon name="chevron-forward" size={22} color={colors.icon} />
+                  <View style={[styles.cardArrow, styles.adminArrow]}>
+                    <Icon name="chevron-forward" size={36} color="#53555b" />
+                  </View>
                 </TouchableOpacity>
 
                 <TouchableOpacity
-                  style={styles.channelCard}
+                  style={[styles.channelCard, styles.teacherCard]}
                   onPress={() => openChat(teacherReceiver)}
                   activeOpacity={0.85}
                   disabled={!teacherReceiver}
                 >
-                  <View style={styles.channelIconWrap}>
-                    <Icon name="school" size={28} color={colors.orange} />
+                  <View style={styles.cardBlobTop} />
+                  <View style={styles.cardBlobBottom} />
+                  <View style={[styles.channelIconWrap, styles.teacherIconWrap]}>
+                    <Icon name="school" size={42} color="#ff9e00" />
                   </View>
-                  <View style={{ flex: 1 }}>
+                  <View style={styles.channelContent}>
                     <Text style={styles.channelTitle}>Class Teacher</Text>
-                    <Text style={styles.channelHint} numberOfLines={2}>
-                      {teacherReceiver
-                        ? teacherReceiver.name || 'Your class teacher'
-                        : 'Not available from school'}
+                    <Text style={styles.channelRole} numberOfLines={1}>
+                      {teacherReceiver?.name || 'Your class teacher'}
+                    </Text>
+                    <Text style={styles.channelHint} numberOfLines={3}>
+                      Chat with your class teacher{`\n`}about your studies, homework{`\n`}and class activities
                     </Text>
                   </View>
-                  <Icon name="chevron-forward" size={22} color={colors.icon} />
+                  <View style={[styles.cardArrow, styles.teacherArrow]}>
+                    <Icon name="chevron-forward" size={36} color="#53555b" />
+                  </View>
                 </TouchableOpacity>
+
+                <View style={styles.connectionNote}>
+                  <View style={styles.connectionArt}>
+                    <Icon name="chatbubble-ellipses" size={92} color="#d8f0ff" />
+                    <Icon name="chatbubble" size={62} color="#fff0dc" style={styles.connectionReply} />
+                  </View>
+                  <Text style={styles.connectionText}>
+                    Stay connected with your school.{`\n`}Ask doubts, get updates and more.
+                  </Text>
+                </View>
               </ScrollView>
 
               <View style={styles.bottomNavWrapper}>
-                <BottomNavigator />
+                <BottomNavigator variant="messages" />
               </View>
             </View>
           </TouchableWithoutFeedback>
@@ -1021,51 +1115,96 @@ const Message = () => {
 export default Message;
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.backgroundcolor },
-  bottomNavWrapper: { position: 'absolute', bottom: 0, left: 0, right: 0 },
+  container: { flex: 1, backgroundColor: '#f8fbff' },
+  bottomNavWrapper: {
+    position: 'absolute', bottom: 0, left: 0, right: 0,
+    shadowColor: '#5573a0', shadowOpacity: 0.11, shadowRadius: 18,
+    shadowOffset: { width: 0, height: -5 }, elevation: 12,
+  },
+  messageHeader: {
+    height: 110, paddingHorizontal: 21, paddingBottom: 10,
+    borderBottomLeftRadius: 29, borderBottomRightRadius: 29, overflow: 'hidden',
+  },
+  headerGlowLeft: {
+    position: 'absolute', width: 61, height: 61, borderRadius: 31,
+    backgroundColor: 'rgba(255,255,255,0.10)', left: -26, top: 4,
+  },
+  headerGlowRight: {
+    position: 'absolute', width: 82, height: 82, borderRadius: 41,
+    backgroundColor: 'rgba(255,255,255,0.12)', right: -33, bottom: -37,
+  },
+  messageHeaderRow: { flex: 1, flexDirection: 'row', alignItems: 'flex-end' },
+  messageStudentPhotoWrap: {
+    width: 60, height: 60, borderRadius: 30, padding: 3, backgroundColor: '#fff',
+    shadowColor: '#a26d00', shadowOpacity: 0.14, shadowRadius: 6, elevation: 4,
+  },
+  messageStudentPhoto: { width: '100%', height: '100%', borderRadius: 27 },
+  messageHeaderText: { flex: 1, marginLeft: 13, paddingBottom: 5 },
+  messageStudentName: { color: '#07133f', fontSize: 19, fontWeight: '800' },
+  messageStudentClass: { color: '#53617d', fontSize: 12, fontWeight: '500', marginTop: 4 },
+  messageNotificationBtn: {
+    width: 38, height: 38, borderRadius: 12, backgroundColor: '#fff',
+    alignItems: 'center', justifyContent: 'center', marginLeft: 6, marginBottom: 5,
+    shadowColor: '#a77e19', shadowOpacity: 0.12, shadowRadius: 10, elevation: 5,
+  },
+  messageBadge: {
+    position: 'absolute', top: 4, right: 4, minWidth: 10, height: 10,
+    paddingHorizontal: 2, borderRadius: 5, alignItems: 'center', justifyContent: 'center', backgroundColor: '#ef4343',
+  },
+  messageBadgeText: { color: '#fff', fontSize: 6, fontWeight: '800' },
+  landingContent: { paddingHorizontal: 18, paddingTop: 20, paddingBottom: 75 },
+  messageHeadingRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 20 },
+  messageHeadingIcon: {
+    width: 38, height: 38, borderRadius: 11, alignItems: 'center', justifyContent: 'center',
+    backgroundColor: '#1689eb', marginRight: 13,
+    shadowColor: '#1689eb', shadowOpacity: 0.22, shadowRadius: 8, elevation: 4,
+  },
   screenTitle: {
-    fontSize: 22,
-    fontWeight: '700',
-    color: '#333',
-    marginBottom: 6,
+    fontSize: 20, fontWeight: '800', color: '#081343', marginBottom: 4,
   },
   screenSubtitle: {
-    fontSize: 14,
-    color: colors.subtitle,
-    marginBottom: 20,
+    fontSize: 12, color: '#64718b', fontWeight: '400',
   },
   channelCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.white,
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 14,
-    elevation: 3,
-    shadowColor: colors.black,
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 3 },
+    minHeight: 132, flexDirection: 'row', alignItems: 'center', overflow: 'hidden',
+    borderRadius: 17, paddingHorizontal: 22, marginBottom: 16,
+    shadowColor: '#6d85a3', shadowOpacity: 0.17, shadowRadius: 15,
+    shadowOffset: { width: 0, height: 8 }, elevation: 7,
+  },
+  adminCard: { backgroundColor: '#fffdfb' },
+  teacherCard: { backgroundColor: '#fbfdff' },
+  cardBlobTop: {
+    position: 'absolute', width: 80, height: 80, borderRadius: 40,
+    right: -34, top: -46, backgroundColor: 'rgba(255, 199, 123, 0.23)',
+  },
+  cardBlobBottom: {
+    position: 'absolute', width: 110, height: 65, borderTopRightRadius: 60,
+    left: -25, bottom: -29, backgroundColor: 'rgba(255, 204, 137, 0.19)',
   },
   channelIconWrap: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: colors.lightgray,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 14,
+    width: 68, height: 68, borderRadius: 34, justifyContent: 'center', alignItems: 'center', marginRight: 18,
   },
+  adminIconWrap: { backgroundColor: '#fff0dd' },
+  teacherIconWrap: { backgroundColor: '#e2f3ff' },
+  channelContent: { flex: 1, zIndex: 1 },
   channelTitle: {
-    fontSize: 17,
-    fontWeight: '700',
-    color: '#333',
+    fontSize: 17, fontWeight: '800', color: '#081343',
+  },
+  channelRole: {
+    fontSize: 13, color: '#65718a', fontWeight: '500', marginTop: 3,
   },
   channelHint: {
-    fontSize: 13,
-    color: colors.subtitle,
-    marginTop: 4,
+    fontSize: 11, lineHeight: 15, color: '#65718a', marginTop: 8,
   },
+  cardArrow: {
+    width: 39, height: 39, borderRadius: 20, alignItems: 'center', justifyContent: 'center', marginLeft: 6, zIndex: 1,
+  },
+  adminArrow: { backgroundColor: '#fff1e2' },
+  teacherArrow: { backgroundColor: '#e2f3ff' },
+  connectionNote: { alignItems: 'center', marginTop: 65, paddingBottom: 24 },
+  connectionArt: { width: 115, height: 87, justifyContent: 'center', alignItems: 'center' },
+  connectionReply: { position: 'absolute', right: 7, bottom: 7 },
+  connectionText: { color: '#72809b', textAlign: 'center', fontSize: 11, lineHeight: 15 },
   chatWrap: { flex: 1, backgroundColor: WA_BG },
   chatHeader: {
     borderBottomLeftRadius: 20,
